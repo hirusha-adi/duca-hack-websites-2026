@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>DUCA - Security Misconfiguration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h2 class="mb-4">Security Misconfiguration</h2>
+
+    <h3 class="mt-2">Scenario #1</h3>
+    <p class="mb-4">
+      A production admin console is deployed with default credentials still enabled.
+      An attacker can log in with common defaults and take over admin features.
+    </p>
+
+    <div>
+      <div class="row g-2 align-items-center">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Admin Username</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="adminUser" value="admin" placeholder="admin">
+        </div>
+      </div>
+      <div class="row g-2 align-items-center mt-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Admin Password</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="adminPass" value="admin123" placeholder="password">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="adminLoginBtn">Login</button>
+        </div>
+      </div>
+
+      <div id="adminStatusBox" class="alert alert-info mt-4">
+        <strong>Environment:</strong> Production<br>
+        <strong>Admin login:</strong> Not authenticated<br>
+        <strong>Notes:</strong> Default credentials not yet tested
+      </div>
+    </div>
+
+    <h3 class="mt-4">Scenario #2</h3>
+    <p class="mb-4">
+      Debug mode is accidentally enabled in production, returning detailed stack traces and internal config.
+      This leaks useful information for attackers.
+    </p>
+
+    <div>
+      <div class="row g-2 align-items-center">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Request</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="endpointInput" value="/api/payments/charge" placeholder="/api/example">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="triggerErrorBtn">Send Request</button>
+        </div>
+      </div>
+
+      <div id="errorStatusBox" class="alert alert-info mt-4">
+        <strong>Mode:</strong> Production (misconfigured with debug=true)<br>
+        <strong>Last response:</strong> No request yet
+      </div>
+    </div>
+
+    <h5 class="mt-4">
+      <a href="https://owasp.org/Top10/2025/A02_2025-Security_Misconfiguration/">Click here</a>
+      to learn more.
+    </h5>
+  </div>
+
+  <script>
+    const adminUserInput = document.getElementById("adminUser");
+    const adminPassInput = document.getElementById("adminPass");
+    const adminLoginBtn = document.getElementById("adminLoginBtn");
+    const adminStatusBox = document.getElementById("adminStatusBox");
+
+    adminLoginBtn.addEventListener("click", () => {
+      const username = adminUserInput.value.trim();
+      const password = adminPassInput.value.trim();
+
+      // Misconfiguration demo: default credentials still active in production
+      if (username === "admin" && password === "admin123") {
+        adminStatusBox.className = "alert alert-danger mt-4";
+        adminStatusBox.innerHTML = `
+          <strong>Environment:</strong> Production<br>
+          <strong>Admin login:</strong> SUCCESS (critical misconfiguration)<br>
+          <strong>Impact:</strong> Full admin dashboard access granted with default credentials
+        `;
+      } else {
+        adminStatusBox.className = "alert alert-info mt-4";
+        adminStatusBox.innerHTML = `
+          <strong>Environment:</strong> Production<br>
+          <strong>Admin login:</strong> Failed<br>
+          <strong>Notes:</strong> Try common defaults like admin / admin123
+        `;
+      }
+    });
+  </script>
+
+  <script>
+    const endpointInput = document.getElementById("endpointInput");
+    const triggerErrorBtn = document.getElementById("triggerErrorBtn");
+    const errorStatusBox = document.getElementById("errorStatusBox");
+
+    triggerErrorBtn.addEventListener("click", () => {
+      const endpoint = endpointInput.value.trim() || "/api/payments/charge";
+
+      // Misconfiguration demo: verbose error output exposed to end users
+      errorStatusBox.className = "alert alert-warning mt-4";
+      errorStatusBox.innerHTML = `
+        <strong>Mode:</strong> Production (misconfigured with debug=true)<br>
+        <strong>HTTP Status:</strong> 500 Internal Server Error<br>
+        <strong>Request:</strong> ${endpoint}<br>
+        <strong>Leaked details:</strong><br>
+        Error: Database connection failed at db/prod-main:5432<br>
+        Stack: ChargeService.process() -> PaymentsController.handlePost()<br>
+        Framework: Express 4.17.1 | Node 16.14.0
+      `;
+    });
+  </script>
+</body>
+
+</html>

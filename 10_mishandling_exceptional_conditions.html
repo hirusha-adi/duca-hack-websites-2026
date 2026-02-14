@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>DUCA - Mishandling of Exceptional Conditions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h2 class="mb-4">Mishandling of Exceptional Conditions</h2>
+
+    <h3 class="mt-2">Scenario #1</h3>
+    <p class="mb-4">
+      Authorization checks mishandle missing parameters and fail open. If role/context parsing fails,
+      access is granted instead of denied.
+      Sample abuse: send role as <code>(empty)</code> or <code>null</code>.
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">User Role</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="roleInput" value="user" placeholder="user">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="checkAccessBtn">Access /admin/report</button>
+        </div>
+      </div>
+
+      <div id="accessStatusBox" class="alert alert-info mt-4">
+        <strong>Access status:</strong> No request yet
+      </div>
+    </div>
+
+    <h3 class="mt-4">Scenario #2</h3>
+    <p class="mb-4">
+      A multi-step transfer process does not roll back when an exception occurs in the middle.
+      This can corrupt account balances and transaction state.
+      Sample abuse: transfer <code>900</code> with <code>Inject Mid-Error</code> enabled.
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Amount</label>
+        </div>
+        <div class="col">
+          <input type="number" class="form-control" id="amountInput" value="50" min="1" placeholder="50">
+        </div>
+      </div>
+
+      <div class="row align-items-center g-2 mt-2">
+        <div class="col-auto">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="injectErrorCheckbox">
+            <label class="form-check-label" for="injectErrorCheckbox">Inject Mid-Error</label>
+          </div>
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="runTransferBtn">Run Transfer</button>
+        </div>
+      </div>
+
+      <div id="transferStatusBox" class="alert alert-info mt-4">
+        <strong>Transfer status:</strong> No transfer attempted yet<br>
+        <strong>Source balance:</strong> 1000<br>
+        <strong>Destination balance:</strong> 200
+      </div>
+    </div>
+
+    <h5 class="mt-4">
+      <a href="https://owasp.org/Top10/2025/A10_2025-Mishandling_of_Exceptional_Conditions/">Click here</a>
+      to learn more.
+    </h5>
+  </div>
+
+  <script>
+    const roleInput = document.getElementById("roleInput");
+    const checkAccessBtn = document.getElementById("checkAccessBtn");
+    const accessStatusBox = document.getElementById("accessStatusBox");
+
+    checkAccessBtn.addEventListener("click", () => {
+      const role = roleInput.value.trim();
+
+      // Insecure exception handling: parsing/validation failure falls back to allow
+      if (role === "admin") {
+        accessStatusBox.className = "alert alert-success mt-4";
+        accessStatusBox.innerHTML = `
+          <strong>Input role:</strong> admin<br>
+          <strong>Result:</strong> 200 OK (expected for admin)
+        `;
+      } else if (role === "") {
+        accessStatusBox.className = "alert alert-danger mt-4";
+        accessStatusBox.innerHTML = `
+          <strong>Input role:</strong> (empty)<br>
+          <strong>Exception:</strong> Missing role parameter<br>
+          <strong>Result:</strong> 200 OK (fail-open vulnerability)
+        `;
+      } else {
+        accessStatusBox.className = "alert alert-warning mt-4";
+        accessStatusBox.innerHTML = `
+          <strong>Input role:</strong> ${role}<br>
+          <strong>Result:</strong> 403 Forbidden
+        `;
+      }
+    });
+  </script>
+
+  <script>
+    const amountInput = document.getElementById("amountInput");
+    const injectErrorCheckbox = document.getElementById("injectErrorCheckbox");
+    const runTransferBtn = document.getElementById("runTransferBtn");
+    const transferStatusBox = document.getElementById("transferStatusBox");
+
+    let sourceBalance = 1000;
+    let destinationBalance = 200;
+
+    runTransferBtn.addEventListener("click", () => {
+      const amount = Number(amountInput.value) || 0;
+      const injectError = injectErrorCheckbox.checked;
+
+      if (amount <= 0) {
+        transferStatusBox.className = "alert alert-warning mt-4";
+        transferStatusBox.innerHTML = `
+          <strong>Transfer status:</strong> Invalid amount<br>
+          <strong>Source balance:</strong> ${sourceBalance}<br>
+          <strong>Destination balance:</strong> ${destinationBalance}
+        `;
+        return;
+      }
+
+      if (amount > sourceBalance) {
+        transferStatusBox.className = "alert alert-warning mt-4";
+        transferStatusBox.innerHTML = `
+          <strong>Transfer status:</strong> Insufficient funds<br>
+          <strong>Source balance:</strong> ${sourceBalance}<br>
+          <strong>Destination balance:</strong> ${destinationBalance}
+        `;
+        return;
+      }
+
+      // Step 1: debit source
+      sourceBalance -= amount;
+
+      if (injectError) {
+        // Insecure behavior: exception occurs and no rollback is performed
+        transferStatusBox.className = "alert alert-danger mt-4";
+        transferStatusBox.innerHTML = `
+          <strong>Transfer status:</strong> ERROR after debit, before credit<br>
+          <strong>Result:</strong> Partial transaction committed (no rollback)<br>
+          <strong>Source balance:</strong> ${sourceBalance}<br>
+          <strong>Destination balance:</strong> ${destinationBalance}
+        `;
+        return;
+      }
+
+      // Step 2: credit destination
+      destinationBalance += amount;
+
+      transferStatusBox.className = "alert alert-success mt-4";
+      transferStatusBox.innerHTML = `
+        <strong>Transfer status:</strong> Completed<br>
+        <strong>Source balance:</strong> ${sourceBalance}<br>
+        <strong>Destination balance:</strong> ${destinationBalance}
+      `;
+    });
+  </script>
+</body>
+
+</html>

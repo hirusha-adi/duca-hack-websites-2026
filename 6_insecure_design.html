@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>DUCA - Insecure Design</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h2 class="mb-4">Insecure Design</h2>
+
+    <h3 class="mt-2">Scenario #1</h3>
+    <p class="mb-4">
+      A group booking flow is designed with weak business rules. Bookings above 15 seats should require
+      a deposit, but the workflow allows confirmation without enforcing that control.
+      Sample abuse: set seats to <code>600</code> and submit as a normal booking.
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Seats Requested</label>
+        </div>
+        <div class="col">
+          <input type="number" class="form-control" id="seatsInput" value="4" min="1" placeholder="4">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="bookBtn">Submit Booking</button>
+        </div>
+      </div>
+
+      <div id="bookingStatusBox" class="alert alert-info mt-4">
+        <strong>Booking status:</strong> No booking submitted yet
+      </div>
+    </div>
+
+    <h3 class="mt-4">Scenario #2</h3>
+    <p class="mb-4">
+      The checkout flow has no anti-automation/rate-limit design. Bots can rapidly place many purchase
+      attempts before legitimate users can complete checkout.
+      Sample abuse: fire <code>120</code> rapid requests.
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Rapid Requests</label>
+        </div>
+        <div class="col">
+          <input type="number" class="form-control" id="requestCountInput" value="3" min="1" placeholder="3">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="runBotBtn">Run Purchase Burst</button>
+        </div>
+      </div>
+
+      <div id="botStatusBox" class="alert alert-info mt-4">
+        <strong>Checkout status:</strong> No burst executed yet
+      </div>
+    </div>
+
+    <h5 class="mt-4">
+      <a href="https://owasp.org/Top10/2025/A06_2025-Insecure_Design/">Click here</a>
+      to learn more.
+    </h5>
+  </div>
+
+  <script>
+    const seatsInput = document.getElementById("seatsInput");
+    const bookBtn = document.getElementById("bookBtn");
+    const bookingStatusBox = document.getElementById("bookingStatusBox");
+
+    bookBtn.addEventListener("click", () => {
+      const seats = Number(seatsInput.value) || 1;
+
+      // Insecure design: missing enforced state transition for "deposit required"
+      if (seats > 15) {
+        bookingStatusBox.className = "alert alert-danger mt-4";
+        bookingStatusBox.innerHTML = `
+          <strong>Seats requested:</strong> ${seats}<br>
+          <strong>Expected control:</strong> Deposit required before confirmation<br>
+          <strong>Actual result:</strong> Booking confirmed anyway (business logic flaw)
+        `;
+      } else {
+        bookingStatusBox.className = "alert alert-success mt-4";
+        bookingStatusBox.innerHTML = `
+          <strong>Seats requested:</strong> ${seats}<br>
+          <strong>Expected control:</strong> Normal booking path<br>
+          <strong>Actual result:</strong> Booking confirmed
+        `;
+      }
+    });
+  </script>
+
+  <script>
+    const requestCountInput = document.getElementById("requestCountInput");
+    const runBotBtn = document.getElementById("runBotBtn");
+    const botStatusBox = document.getElementById("botStatusBox");
+
+    runBotBtn.addEventListener("click", () => {
+      const requests = Number(requestCountInput.value) || 1;
+      const accepted = requests;
+
+      // Insecure design: no rate limiting, no queueing fairness, no anti-bot controls
+      if (requests > 20) {
+        botStatusBox.className = "alert alert-warning mt-4";
+        botStatusBox.innerHTML = `
+          <strong>Rapid requests sent:</strong> ${requests}<br>
+          <strong>Accepted orders:</strong> ${accepted}<br>
+          <strong>Risk:</strong> Bot can drain inventory before normal users
+        `;
+      } else {
+        botStatusBox.className = "alert alert-success mt-4";
+        botStatusBox.innerHTML = `
+          <strong>Rapid requests sent:</strong> ${requests}<br>
+          <strong>Accepted orders:</strong> ${accepted}<br>
+          <strong>Notes:</strong> System still lacks anti-bot and frequency controls
+        `;
+      }
+    });
+  </script>
+</body>
+
+</html>

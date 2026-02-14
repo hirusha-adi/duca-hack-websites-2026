@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>DUCA - Security Logging and Alerting Failures</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h2 class="mb-4">Security Logging and Alerting Failures</h2>
+
+    <h3 class="mt-2">Scenario #1</h3>
+    <p class="mb-4">
+      Failed logins are counted but no alert is triggered, even after repeated suspicious attempts.
+      This delays detection of brute force and credential stuffing attacks.
+      Sample abuse: run <code>25</code> failed attempts in a short burst.
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Failed Attempts</label>
+        </div>
+        <div class="col">
+          <input type="number" class="form-control" id="failedAttemptsInput" value="2" min="1" placeholder="2">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="simulateAttemptsBtn">Simulate</button>
+        </div>
+      </div>
+
+      <div id="attemptsStatusBox" class="alert alert-info mt-4">
+        <strong>Monitoring status:</strong> No simulation yet
+      </div>
+    </div>
+
+    <h3 class="mt-4">Scenario #2</h3>
+    <p class="mb-4">
+      Logs include sensitive data and unescaped user input. This leaks secrets and can allow log injection
+      that corrupts monitoring records.
+      Sample abuse: <code>alice\n[CRITICAL] admin logged in</code>
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Username</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="usernameInput" value="alice" placeholder="alice">
+        </div>
+      </div>
+
+      <div class="row align-items-center g-2 mt-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">API Token</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="tokenInput" value="tok_live_123456" placeholder="tok_live_123456">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="writeLogBtn">Write Log Entry</button>
+        </div>
+      </div>
+
+      <div id="logStatusBox" class="alert alert-info mt-4">
+        <strong>Log output:</strong> No log written yet
+      </div>
+    </div>
+
+    <h5 class="mt-4">
+      <a href="https://owasp.org/Top10/2025/A09_2025-Security_Logging_and_Alerting_Failures/">Click here</a>
+      to learn more.
+    </h5>
+  </div>
+
+  <script>
+    const failedAttemptsInput = document.getElementById("failedAttemptsInput");
+    const simulateAttemptsBtn = document.getElementById("simulateAttemptsBtn");
+    const attemptsStatusBox = document.getElementById("attemptsStatusBox");
+
+    simulateAttemptsBtn.addEventListener("click", () => {
+      const attempts = Number(failedAttemptsInput.value) || 1;
+
+      // Insecure demo: events are counted but alert threshold/playbook is not enforced
+      if (attempts >= 10) {
+        attemptsStatusBox.className = "alert alert-warning mt-4";
+        attemptsStatusBox.innerHTML = `
+          <strong>Failed attempts logged:</strong> ${attempts}<br>
+          <strong>Expected:</strong> Trigger SOC alert and temporary lockout<br>
+          <strong>Actual:</strong> No alert generated (detection gap)
+        `;
+      } else {
+        attemptsStatusBox.className = "alert alert-success mt-4";
+        attemptsStatusBox.innerHTML = `
+          <strong>Failed attempts logged:</strong> ${attempts}<br>
+          <strong>Actual:</strong> Logged only, no real alerting policy demonstrated
+        `;
+      }
+    });
+  </script>
+
+  <script>
+    const usernameInput = document.getElementById("usernameInput");
+    const tokenInput = document.getElementById("tokenInput");
+    const writeLogBtn = document.getElementById("writeLogBtn");
+    const logStatusBox = document.getElementById("logStatusBox");
+
+    writeLogBtn.addEventListener("click", () => {
+      const user = usernameInput.value || "alice";
+      const token = tokenInput.value || "tok_live_123456";
+
+      // Insecure demo: direct concatenation leaks token and allows newline/control injection into logs
+      const logLine = `[INFO] login user=${user} token=${token}`;
+
+      logStatusBox.className = "alert alert-danger mt-4";
+      logStatusBox.innerHTML = `
+        <strong>Written log line:</strong><br>
+        <pre class="mb-0">${logLine}</pre>
+        <strong>Risk:</strong> Sensitive token stored in logs; unescaped input can poison log records
+      `;
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>DUCA - Software or Data Integrity Failures</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container mt-4">
+    <h2 class="mb-4">Software or Data Integrity Failures</h2>
+
+    <h3 class="mt-2">Scenario #1</h3>
+    <p class="mb-4">
+      The application auto-installs updates without verifying a digital signature or checksum.
+      A tampered update can be treated as trusted and executed.
+      Sample abuse: set source to <code>mirror-update.zip</code> with signature <code>missing</code>.
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Update Package</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="packageInput" value="app-update-v1.4.2.zip" placeholder="app-update-v1.4.2.zip">
+        </div>
+      </div>
+
+      <div class="row align-items-center g-2 mt-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Signature</label>
+        </div>
+        <div class="col">
+          <select class="form-select" id="signatureSelect">
+            <option value="valid">valid</option>
+            <option value="missing">missing</option>
+            <option value="invalid">invalid</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="installUpdateBtn">Install Update</button>
+        </div>
+      </div>
+
+      <div id="updateStatusBox" class="alert alert-info mt-4">
+        <strong>Update status:</strong> No update attempted yet
+      </div>
+    </div>
+
+    <h3 class="mt-4">Scenario #2</h3>
+    <p class="mb-4">
+      Client-controlled serialized state is trusted without integrity checks. Attackers can tamper values
+      (like role or balance) and the app accepts them as valid.
+      Sample abuse: <code>{"user":"user1","role":"admin","credits":9999}</code>
+    </p>
+
+    <div>
+      <div class="row align-items-center g-2">
+        <div class="col-auto">
+          <label class="col-form-label text-nowrap">Serialized State</label>
+        </div>
+        <div class="col">
+          <input type="text" class="form-control" id="stateInput" value='{"user":"user1","role":"user","credits":50}' placeholder='{"user":"user1","role":"user","credits":50}'>
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-primary" id="applyStateBtn">Apply State</button>
+        </div>
+      </div>
+
+      <div id="stateStatusBox" class="alert alert-info mt-4">
+        <strong>State status:</strong> No state applied yet
+      </div>
+    </div>
+
+    <h5 class="mt-4">
+      <a href="https://owasp.org/Top10/2025/A08_2025-Software_or_Data_Integrity_Failures/">Click here</a>
+      to learn more.
+    </h5>
+  </div>
+
+  <script>
+    const packageInput = document.getElementById("packageInput");
+    const signatureSelect = document.getElementById("signatureSelect");
+    const installUpdateBtn = document.getElementById("installUpdateBtn");
+    const updateStatusBox = document.getElementById("updateStatusBox");
+
+    installUpdateBtn.addEventListener("click", () => {
+      const pkg = packageInput.value.trim() || "app-update-v1.4.2.zip";
+      const signature = signatureSelect.value;
+
+      // Insecure behavior demo: update is still accepted even when signature is missing/invalid
+      if (signature === "valid") {
+        updateStatusBox.className = "alert alert-success mt-4";
+        updateStatusBox.innerHTML = `
+          <strong>Package:</strong> ${pkg}<br>
+          <strong>Signature:</strong> valid<br>
+          <strong>Result:</strong> Installed (integrity check passed)
+        `;
+      } else {
+        updateStatusBox.className = "alert alert-danger mt-4";
+        updateStatusBox.innerHTML = `
+          <strong>Package:</strong> ${pkg}<br>
+          <strong>Signature:</strong> ${signature}<br>
+          <strong>Result:</strong> Installed anyway (integrity failure)
+        `;
+      }
+    });
+  </script>
+
+  <script>
+    const stateInput = document.getElementById("stateInput");
+    const applyStateBtn = document.getElementById("applyStateBtn");
+    const stateStatusBox = document.getElementById("stateStatusBox");
+
+    applyStateBtn.addEventListener("click", () => {
+      const raw = stateInput.value.trim();
+
+      try {
+        const parsed = JSON.parse(raw || '{"user":"user1","role":"user","credits":50}');
+
+        // Insecure behavior demo: no signature/MAC check, trusts client-controlled object
+        if (parsed.role === "admin" || Number(parsed.credits) > 1000) {
+          stateStatusBox.className = "alert alert-danger mt-4";
+          stateStatusBox.innerHTML = `
+            <strong>Applied user:</strong> ${parsed.user || "unknown"}<br>
+            <strong>Applied role:</strong> ${parsed.role || "user"}<br>
+            <strong>Applied credits:</strong> ${parsed.credits || 0}<br>
+            <strong>Risk:</strong> Tampered state accepted as trusted
+          `;
+        } else {
+          stateStatusBox.className = "alert alert-success mt-4";
+          stateStatusBox.innerHTML = `
+            <strong>Applied user:</strong> ${parsed.user || "unknown"}<br>
+            <strong>Applied role:</strong> ${parsed.role || "user"}<br>
+            <strong>Applied credits:</strong> ${parsed.credits || 0}<br>
+            <strong>Notes:</strong> Normal state accepted
+          `;
+        }
+      } catch (err) {
+        stateStatusBox.className = "alert alert-warning mt-4";
+        stateStatusBox.innerHTML = `
+          <strong>State status:</strong> Invalid JSON format<br>
+          <strong>Hint:</strong> Use valid JSON like {"user":"user1","role":"user","credits":50}
+        `;
+      }
+    });
+  </script>
+</body>
+
+</html>
